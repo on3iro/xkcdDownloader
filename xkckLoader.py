@@ -44,6 +44,7 @@ def load_page(url, retry_count=0):
     except ConnectionResetError as e:
         if retry_count == MAX_RETRIES:
             raise e
+        print('Connection got reset. Trying again...')
         time.sleep(0.5)
         load_page(url, retry_count + 1)
 
@@ -55,16 +56,20 @@ def save_img(soup, target_dir):
         print('Could not find comic image.')
     else:
         comic_url = 'http:{0}'.format(comic_elem[0].get('src'))
-        # Download the image
-        print('Downloading image {0}'.format(comic_url))
-        res = requests.get(comic_url)
-        res.raise_for_status()
+        file_path = os.path.join(target_dir, os.path.basename(comic_url))
 
-    image_file = open(os.path.join(target_dir,
-                                   os.path.basename(comic_url)), 'wb')
-    for chunk in res.iter_content(100000):
-        image_file.write(chunk)
-    image_file.close()
+        if os.path.exists(file_path):
+            print('Image exists. Skipping file...')
+        else:
+            print('Downloading image {0}'.format(comic_url))
+            res = requests.get(comic_url)
+            res.raise_for_status()
+
+            image_file = open(os.path.join(target_dir,
+                                           os.path.basename(comic_url)), 'wb')
+            for chunk in res.iter_content(100000):
+                image_file.write(chunk)
+            image_file.close()
 
 
 def next_img_url(soup):
