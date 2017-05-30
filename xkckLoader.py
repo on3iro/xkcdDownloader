@@ -6,6 +6,7 @@ import argparse
 import os
 import bs4
 import time
+import threading
 
 
 BASE_URL = 'http://xkcd.com'
@@ -24,14 +25,27 @@ def main(base_url):
         target_dir = args.dir
 
     os.makedirs(target_dir, exist_ok=True)
-    url = base_url
 
-    while not url.endswith('#'):
-        soup = load_page(url)
-        save_img(soup, target_dir)
-        url = next_img_url(soup)
+    # Startd multiple download threads
+    download_threads = []
+    for i in range(0, 1400, 100):
+        download_thread = threading.Thread(target=download_xkcd,
+                                           args=(i, i + 99,
+                                                 base_url,
+                                                 target_dir))
+        download_threads.append(download_thread)
+        download_thread.start()
 
+    # Wat for all threads to end
+    for download_thread in download_threads:
+        download_thread.join()
     print('Done.')
+
+
+def download_xkcd(start_comic, end_comic, base_url, target_dir):
+    for url_number in range(start_comic, end_comic):
+        soup = load_page(os.path.join(base_url, str(url_number)))
+        save_img(soup, target_dir)
 
 
 def load_page(url, retry_count=0):
@@ -70,12 +84,6 @@ def save_img(soup, target_dir):
             for chunk in res.iter_content(100000):
                 image_file.write(chunk)
             image_file.close()
-
-
-def next_img_url(soup):
-    prev_link = soup.select('a[rel="prev"]')[0]
-    link_source = prev_link.get('href')
-    return 'http://xkcd.com{0}'.format(link_source)
 
 
 if __name__ == '__main__':
